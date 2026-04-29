@@ -1,0 +1,64 @@
+# Deploys Stacktree Labs' account & data deletion page to GitHub Pages.
+#
+# After the first successful run, the page is served at:
+#   https://<owner>.github.io/<repo>/
+# Use that URL in:
+#   - Google Play Console → Data safety → "Data deletion URL"
+#   - The in-app "Delete account" footer link, if you ever expose one
+#
+# One-time manual setup before this workflow can run:
+#   1. Push this repo to GitHub.
+#   2. Open Settings → Pages.
+#   3. Build and deployment → Source → GitHub Actions.
+#   4. Save. (No branch picker is needed when source is Actions.)
+# After that, every push to `main` redeploys automatically. You can
+# also fire a manual deploy from the Actions tab via "Run workflow".
+
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Required to publish via the official deploy action.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage _site directory
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          # Skip Jekyll preprocessing — we serve plain HTML.
+          touch _site/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
